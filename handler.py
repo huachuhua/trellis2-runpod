@@ -166,6 +166,12 @@ def get_pipeline():
         # bias type (Half)"). RMBG-2.0, el quita-fondo original, es float32.
         if getattr(pipe, "rembg_model", None) is not None:
             pipe.rembg_model.model.float()
+        # TRELLIS.2 recorre dino.layer (transformers 4.56/4.57). En transformers 5 las
+        # capas se mudaron a dino.model.layer, con la misma firma de llamada. Se deja un
+        # alias sin registrar el submódulo dos veces.
+        dino = pipe.image_cond_model.model
+        if not hasattr(dino, "layer") and hasattr(getattr(dino, "model", None), "layer"):
+            dino.__dict__["layer"] = dino.model.layer
         pipe.cuda()
         pipeline = pipe
         pipeline_error = None
