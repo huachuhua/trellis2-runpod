@@ -105,8 +105,11 @@ snapshot_download('microsoft/TRELLIS.2-4B', local_dir='/models/TRELLIS.2-4B', al
 'ckpts/slat_flow_imgshape2tex_dit_1_3B_512_bf16.*', 'ckpts/slat_flow_imgshape2tex_dit_1_3B_1024_bf16.*'])" \
     && rm -rf /models/TRELLIS.2-4B/.cache; fi
 
-# 8. Comprobar que las extensiones compiladas se importan (sin GPU no se puede ir más lejos)
-RUN python -c "import flash_attn, nvdiffrast.torch, cumesh, flex_gemm, o_voxel; print('extensiones OK')"
+# 8. Comprobar las extensiones compiladas. flex_gemm (y o_voxel, que lo importa) no se
+#    pueden importar sin GPU: sus kernels de triton piden un driver activo al cargarse.
+#    Para esos dos solo se comprueba que quedaron instalados.
+RUN python -c "import importlib.util as u, flash_attn, nvdiffrast.torch, cumesh; \
+assert all(u.find_spec(m) for m in ('flex_gemm', 'o_voxel')); print('extensiones OK')"
 
 # 9. Handler de RunPod
 COPY handler.py result_transport.py ./
