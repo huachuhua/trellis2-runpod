@@ -85,7 +85,9 @@ def ensure_dino():
     if os.path.exists(os.path.join(target, "config.json")) and \
             os.path.exists(os.path.join(target, "model.safetensors")):
         return target
-    if not (os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")):
+    raw = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+    token = raw.strip().strip('"').strip("'")
+    if not token:
         raise RuntimeError(
             "Falta la variable HF_TOKEN en el endpoint. DINOv3 es de acceso restringido: "
             "se necesita un token de una cuenta de Hugging Face con la licencia de "
@@ -93,14 +95,28 @@ def ensure_dino():
         )
     print(f"⬇️  Descargando DINOv3 a {target}...", flush=True)
     try:
-        snapshot_download(DINO_REPO, local_dir=target,
+        snapshot_download(DINO_REPO, local_dir=target, token=token,
                           allow_patterns=["config.json", "model.safetensors", "preprocessor_config.json"])
     except Exception as e:
+        first_line = str(e).strip().splitlines()[0] if str(e).strip() else ""
         raise RuntimeError(
-            f"No se pudo descargar {DINO_REPO}: {type(e).__name__}: {e}. "
-            "Si es un 403, la solicitud de acceso a DINOv3 todavía no fue aprobada para esa cuenta."
+            f"No se pudo descargar {DINO_REPO}: {type(e).__name__}: {first_line} "
+            f"[{describe_token(raw, token)}] "
+            "401 = el token no es válido; 403 = la cuenta no tiene el acceso a DINOv3 aprobado."
         ) from e
     return target
+
+
+def describe_token(raw, token):
+    """Forma del token, nunca su valor: alcanza para distinguir un secreto mal cargado."""
+    notes = [f"largo {len(token)}", "empieza con hf_" if token.startswith("hf_") else "NO empieza con hf_"]
+    if "{{" in raw or "RUNPOD_SECRET" in raw:
+        notes.append("es la referencia al secreto sin sustituir")
+    if raw != token:
+        notes.append("traía espacios, saltos de línea o comillas alrededor")
+    if any(c.isspace() for c in token):
+        notes.append("tiene espacios en el medio")
+    return "HF_TOKEN: " + ", ".join(notes)
 
 
 def write_pipeline_config(model_dir, dino_dir):

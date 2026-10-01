@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
     inputs:
+      full_build:
+        description: "1 = reconstruir todo (dependencias y pesos, ~30 min). Vacío = solo el handler sobre la imagen ya validada"
+        default: ""
       bake_weights:
         description: "Hornear los pesos de TRELLIS.2 en la imagen (1) o bajarlos al volumen al arrancar (0)"
         default: "1"
@@ -66,7 +69,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: ${{ github.event.inputs.full_build == '1' && './Dockerfile' || './Dockerfile.handler' }}
           push: true
           build-args: |
             BAKE_WEIGHTS=${{ github.event.inputs.bake_weights || '1' }}

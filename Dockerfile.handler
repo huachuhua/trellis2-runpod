@@ -1,0 +1,7 @@
+# Reconstrucción rápida: reutiliza la imagen completa ya validada (dependencias
+# compiladas + pesos) y solo reemplaza el handler. Para cambiar dependencias o
+# pesos, construir el Dockerfile completo y actualizar este digest.
+FROM ghcr.io/huachuhua/trellis2-runpod@sha256:87822bbc52f8b93d8bf97eefb2fc74718a98a57226afb6ddb10c02df82c20588
+WORKDIR /app
+COPY handler.py result_transport.py ./
+CMD ["python", "-u", "handler.py"]
