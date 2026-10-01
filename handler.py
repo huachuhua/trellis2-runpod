@@ -161,6 +161,11 @@ def get_pipeline():
 
         from trellis2.pipelines import Trellis2ImageTo3DPipeline
         pipe = Trellis2ImageTo3DPipeline.from_pretrained(model_dir, PIPELINE_CONFIG)
+        # El checkpoint de BiRefNet está en fp16 y transformers lo carga así, pero el
+        # envoltorio de TRELLIS.2 le pasa la imagen en float32 ("Input type (float) and
+        # bias type (Half)"). RMBG-2.0, el quita-fondo original, es float32.
+        if getattr(pipe, "rembg_model", None) is not None:
+            pipe.rembg_model.model.float()
         pipe.cuda()
         pipeline = pipe
         pipeline_error = None
@@ -287,7 +292,11 @@ def handler(job):
         traceback.print_exc()
         print(f"❌ Error durante la inferencia de TRELLIS.2: {e}", flush=True)
         torch.cuda.empty_cache()
-        yield {"error": f"{type(e).__name__}: {e}"}
+        # Los últimos marcos del traceback viajan con el error: sin ellos hay que
+        # ir a buscar los logs del worker a la consola de RunPod.
+        frames = traceback.extract_tb(e.__traceback__)[-4:]
+        where = " <- ".join(f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in reversed(frames))
+        yield {"error": f"{type(e).__name__}: {e} [{where}]"}
 
 
 if __name__ == "__main__":
